@@ -2,10 +2,18 @@ package com.bootcoding.aws_ec2_notes_generator.app;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 @Service
@@ -22,7 +30,7 @@ public class NoteGeneratorService {
         this.objectMapper = objectMapper;
     }
 
-    public String generateNote(NoteRequest noteRequest) {
+    public String generateNote(com.bootcoding.aws_ec2_notes_generator.app.NoteRequest noteRequest) {
         String prompt = buildPrompt(noteRequest);
 
         Map<String, Object> requestBody = Map.of(
@@ -32,7 +40,6 @@ public class NoteGeneratorService {
                         })
                 }
         );
-
         try {
             String response = webClient.post()
                     .uri(uriBuilder -> uriBuilder
@@ -46,10 +53,36 @@ public class NoteGeneratorService {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
-
-            return extractResponseContent(response);
+            // Extract the generated text content from response
+            String extractedContent = extractResponseContent(response);
+            // Save the content as Markdown file
+            saveAsMarkdown(extractedContent);
+            // Return the content as response
+            return extractedContent;
         } catch (Exception e) {
             return "Error calling Gemini API: " + e.getMessage();
+        }
+    }
+
+    private void saveAsMarkdown(String content) {
+        try {
+            // Directory to save notes
+            Path folderPath = Paths.get("/home/kumar/IdeaProjects/aws-ec2-notes-generator/generated-notes");
+            Files.createDirectories(folderPath);
+
+            // Create filename with timestamp
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            String filename = "aws_ec2_notes_" + timestamp + ".md";
+            Path filePath = folderPath.resolve(filename);
+
+            // Write content to the file
+            try (FileWriter writer = new FileWriter(filePath.toFile())) {
+                writer.write(content);
+            }
+
+            System.out.println("✅ Notes saved to Markdown file: " + filePath.toString());
+        } catch (IOException e) {
+            System.err.println("❌ Error saving Markdown file: " + e.getMessage());
         }
     }
 
@@ -68,13 +101,14 @@ public class NoteGeneratorService {
         }
     }
 
-    private String buildPrompt(NoteRequest noteRequest) {
+    private @NotNull String buildPrompt(com.bootcoding.aws_ec2_notes_generator.app.NoteRequest noteRequest) {
         StringBuilder prompt = new StringBuilder("Please generate AWS EC2 notes based on the content below.");
 
         if (noteRequest.getTone() != null && !noteRequest.getTone().isEmpty()) {
-            prompt.append("Use a ").append(noteRequest.getTone()).append(" tone. ");
+            prompt.append(" Use a ").append(noteRequest.getTone()).append(" tone.");
         }
-        prompt.append("Here is the AWS EC2 Note\n").append(noteRequest.getContent());
+
+        prompt.append(" Here is the AWS EC2 Note:\n").append(noteRequest.getContent());
         return prompt.toString();
     }
 }
