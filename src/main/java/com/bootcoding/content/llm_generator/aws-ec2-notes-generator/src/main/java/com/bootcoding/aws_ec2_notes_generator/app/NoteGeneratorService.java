@@ -40,6 +40,7 @@ public class NoteGeneratorService {
                         })
                 }
         );
+
         try {
             String response = webClient.post()
                     .uri(uriBuilder -> uriBuilder
@@ -53,26 +54,28 @@ public class NoteGeneratorService {
                     .retrieve()
                     .bodyToMono(String.class)
                     .block();
+
             // Extract the generated text content from response
             String extractedContent = extractResponseContent(response);
+
             // Save the content as Markdown file
             saveAsMarkdown(extractedContent);
+
             // Return the content as response
             return extractedContent;
         } catch (Exception e) {
             return "Error calling Gemini API: " + e.getMessage();
         }
     }
-
     private void saveAsMarkdown(String content) {
         try {
             // Directory to save notes
             Path folderPath = Paths.get("/home/kumar/IdeaProjects/aws-ec2-notes-generator/generated-notes");
             Files.createDirectories(folderPath);
 
-            // Create filename with timestamp
-            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-            String filename = "aws_ec2_notes_" + timestamp + ".md";
+            // Create filename with full timestamp (date + time)
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"));
+            String filename = "aws_ec2_ques_ans_" + timestamp + ".md";
             Path filePath = folderPath.resolve(filename);
 
             // Write content to the file
@@ -80,9 +83,9 @@ public class NoteGeneratorService {
                 writer.write(content);
             }
 
-            System.out.println("✅ Notes saved to Markdown file: " + filePath.toString());
+            System.out.println("Notes saved to Markdown file: " + filePath);
         } catch (IOException e) {
-            System.err.println("❌ Error saving Markdown file: " + e.getMessage());
+            System.out.println("Error saving Markdown file: " + e.getMessage());
         }
     }
 
@@ -102,13 +105,13 @@ public class NoteGeneratorService {
     }
 
     private @NotNull String buildPrompt(com.bootcoding.aws_ec2_notes_generator.app.NoteRequest noteRequest) {
-        StringBuilder prompt = new StringBuilder("Please generate AWS EC2 notes based on the content below.");
+        StringBuilder prompt = new StringBuilder("Please generate AWS EC2 Questions & Answer based on the content below.");
 
         if (noteRequest.getTone() != null && !noteRequest.getTone().isEmpty()) {
             prompt.append(" Use a ").append(noteRequest.getTone()).append(" tone.");
         }
 
-        prompt.append(" Here is the AWS EC2 Note:\n").append(noteRequest.getContent());
+        prompt.append(" Here is the ASW EC2 Questions & Answers Note:\n").append(noteRequest.getContent());
         return prompt.toString();
     }
 }
